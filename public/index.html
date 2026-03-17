@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Usuários</title>
+    <style>
+        body { font-family: Arial; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 5px; }
+        h1 { color: #333; }
+        input { padding: 8px; margin-right: 10px; width: 300px; }
+        button { padding: 8px 15px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 3px; }
+        button:hover { background: #0056b3; }
+        button.btn-edit { background: #28a745; }
+        button.btn-edit:hover { background: #218838; }
+        button.btn-delete { background: #dc3545; }
+        button.btn-delete:hover { background: #c82333; }
+        table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f9fa; }
+        .message { padding: 10px; margin: 10px 0; border-radius: 3px; display: none; }
+        .message.show { display: block; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gerenciamento de Usuários</h1>
+        
+        <div id="msg" class="message"></div>
+        
+        <div>
+            <input type="text" id="nome" placeholder="Nome do usuário">
+            <button onclick="adicionar()">Adicionar</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tabela">
+                <tr><td colspan="3">Carregando...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Carregar usuários ao abrir
+        listar();
+        setInterval(listar, 2000);
+
+        function listar() {
+            fetch('/users')
+                .then(r => r.json())
+                .then(users => {
+                    let html = '';
+                    if (users && users.length > 0) {
+                        users.forEach(u => {
+                            html += '<tr>';
+                            html += '<td>' + u.id + '</td>';
+                            html += '<td>' + u.nome + '</td>';
+                            html += '<td>';
+                            html += '<button class="btn-edit" onclick="editar(' + u.id + ');return false;">Editar</button> ';
+                            html += '<button class="btn-delete" onclick="deletar(' + u.id + ');return false;">Deletar</button>';
+                            html += '</td>';
+                            html += '</tr>';
+                        });
+                    } else {
+                        html = '<tr><td colspan="3">Nenhum usuário</td></tr>';
+                    }
+                    document.getElementById('tabela').innerHTML = html;
+                })
+                .catch(e => alert('Erro ao listar: ' + e));
+        }
+
+        function adicionar() {
+            const nome = document.getElementById('nome').value;
+            if (!nome) {
+                msg('Digite um nome', 'error');
+                return;
+            }
+            fetch('/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome })
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('nome').value = '';
+                msg('Usuário criado!', 'success');
+                listar();
+            })
+            .catch(e => msg('Erro ao criar: ' + e, 'error'));
+        }
+
+        function editar(id) {
+            console.log('Função editar chamada com ID:', id);
+            const novoNome = prompt('Novo nome:');
+            console.log('Novo nome digitado:', novoNome);
+            if (!novoNome) {
+                console.log('Nenhum nome digitado, cancelando');
+                return;
+            }
+            
+            console.log('Fazendo fetch PUT para /users/' + id);
+            fetch('/users/' + id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome: novoNome })
+            })
+            .then(r => {
+                console.log('Resposta recebida, status:', r.status);
+                return r.json();
+            })
+            .then(data => {
+                console.log('Dados retornados:', data);
+                msg('Usuário atualizado!', 'success');
+                listar();
+            })
+            .catch(e => {
+                console.error('Erro:', e);
+                msg('Erro ao atualizar: ' + e, 'error');
+            });
+        }
+
+        function deletar(id) {
+            if (confirm('Deletar usuário?')) {
+                fetch('/users/' + id, { method: 'DELETE' })
+                    .then(r => r.json())
+                    .then(data => {
+                        msg('Usuário deletado!', 'success');
+                        listar();
+                    })
+                    .catch(e => msg('Erro ao deletar: ' + e, 'error'));
+            }
+        }
+
+        function msg(texto, tipo) {
+            const el = document.getElementById('msg');
+            el.textContent = texto;
+            el.className = 'message show ' + tipo;
+            setTimeout(() => el.className = 'message', 3000);
+        }
+    </script>
+</body>
+</html>
